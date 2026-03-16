@@ -36,20 +36,18 @@
 --|					can be changed by the inputs
 --|					
 --|
---|                 xxx State Encoding key
---|                 --------------------
---|                  State | Encoding
---|                 --------------------
---|                  OFF   | 
---|                  ON    | 
---|                  R1    | 
---|                  R2    | 
---|                  R3    | 
---|                  L1    | 
---|                  L2    | 
---|                  L3    | 
---|                 --------------------
---|
+--|     One-Hot State Encoding key
+--|     --------------------------
+--|     State | S7 S6 S5 S4 S3 S2 S1 S0
+--|     OFF   | 1  0  0  0  0  0  0  0
+--|     ON    | 0  1  0  0  0  0  0  0
+--|     R1    | 0  0  1  0  0  0  0  0
+--|     R2    | 0  0  0  1  0  0  0  0
+--|     R3    | 0  0  0  0  1  0  0  0
+--|     L1    | 0  0  0  0  0  1  0  0
+--|     L2    | 0  0  0  0  0  0  1  0
+--|     L3    | 0  0  0  0  0  0  0  1
+--| --------------------------
 --|
 --+----------------------------------------------------------------------------
 --|
@@ -86,21 +84,53 @@ library ieee;
   use ieee.numeric_std.all;
  
 entity thunderbird_fsm is 
---  port(
-	
---  );
+  port(
+	i_clk : in std_logic;
+	i_reset : in std_logic;
+	i_left : in std_logic;
+	i_right : in std_logic;
+	o_lights_L : out std_logic_vector(2 downto 0);
+	o_lights_R : out std_logic_vector(2 downto 0)
+  );
 end thunderbird_fsm;
 
 architecture thunderbird_fsm_arch of thunderbird_fsm is 
 
 -- CONSTANTS ------------------------------------------------------------------
-  
+
+signal s_state : std_logic_vector(7 downto 0) := "10000000";
+signal s_next_state : std_logic_vector(7 downto 0);
+
 begin
 
 	-- CONCURRENT STATEMENTS --------------------------------------------------------	
-	
+	process(i_clk)
+	begin
+	   if rising_edge(i_clk) then
+	       if i_reset = '1' then
+	           s_state <= "10000000";
+	       else
+	           s_state <= s_next_state;
+	       end if;
+	   end if;
+	end process;
     ---------------------------------------------------------------------------------
+	s_next_state(7) <= (s_state(7) and (not i_left) and (not i_right)) or s_state(6) or s_state(3) or s_state(0);
+    s_next_state(6) <= s_state(7) and i_left and i_right;
+    s_next_state(5) <= s_state(7) and (not i_left) and i_right;
+    s_next_state(4) <= s_state(5);
+    s_next_state(3) <= s_state(4);
+    s_next_state(2) <= s_state(7) and i_left and (not i_right);
+    s_next_state(1) <= s_state(2);
+    s_next_state(0) <= s_state(1);
 	
+	o_lights_L(2) <= s_state(6) or s_state(0);                         
+    o_lights_L(1) <= s_state(6) or s_state(1) or s_state(0);
+    o_lights_L(0) <= s_state(6) or s_state(2) or s_state(1) or s_state(0);
+
+    o_lights_R(2) <= s_state(6) or s_state(3);                           
+    o_lights_R(1) <= s_state(6) or s_state(4) or s_state(3);             
+    o_lights_R(0) <= s_state(6) or s_state(5) or s_state(4) or s_state(3);
 	-- PROCESSES --------------------------------------------------------------------
     
 	-----------------------------------------------------					   
